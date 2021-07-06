@@ -633,8 +633,8 @@ contract UselessFurnace is Context, Ownable {
    * 
    * Updates the Uniswap Router and Uniswap pairing for ETH In Case of migration
    */
-  function setRouterAndPair(address _uniswapV2Router) public onlyOwner {
-        uniswapV2Router = IUniswapV2Router02(_uniswapV2Router);
+  function setUniswapV2Router(address _uniswapV2Router) public onlyOwner {
+    uniswapV2Router = IUniswapV2Router02(_uniswapV2Router);
   }
   
   /**
