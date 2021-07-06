@@ -669,16 +669,16 @@ contract UselessFurnace is Context, Ownable {
    */ 
   function buyAndBurnUseless(uint256 tokenAmount) private {
     
-    // generate the uniswap pair path of token -> weth
+    // Uniswap pair path for BNB -> USELESS
     address[] memory path = new address[](2);
     path[0] = uniswapV2Router.WETH();
     path[1] = _uselessAddr;
     
-    // make the swap
+    // Swap BNB for USELESS
     uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: tokenAmount}(
         0, // accept any amount of USELESS
         path,
-        _burnWallet, // Burn address
+        _burnWallet, // Burn Address
         block.timestamp.add(300)
     );  
       
