@@ -605,17 +605,19 @@ contract UselessFurnace is Context, Ownable {
   // what percent of our BNB we buy and burn USELESS with
   uint8 public _buyAndBurnPercent = 100;
   
+  // Total Amount of BNB that has been used to Buy/Sell USELESS
   uint256 public _totalBNBUsedToBuyAndBurnUSELESS = 0;
   
   // Initialize Pancakeswap Router
   IUniswapV2Router02 private uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E);
   
+  // Tells the blockchain how much BNB was used on every Buy/Burn
   event BuyAndBurn(
     uint256 amountBurned
   );
 
   /**
-   * @dev Returns the bep token owner.
+   * @dev Returns the owner of the contract
    */
   function getOwner() external view returns (address) {
     return owner();
