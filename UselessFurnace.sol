@@ -600,7 +600,7 @@ contract UselessFurnace is Context, Ownable {
   address payable private _uselessAddr = payable(0x2cd2664Ce5639e46c6a3125257361e01d0213657);
  
   // burn wallet address
-  address payable private _burnWallet = payable(0x000000000000000000000000000000000000dead);
+  address payable private _burnWallet = payable(0x000000000000000000000000000000000000dEaD);
   
   // what percent of our BNB we buy and burn USELESS with
   uint8 public _buyAndBurnPercent = 100;
