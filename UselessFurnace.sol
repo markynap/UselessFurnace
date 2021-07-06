@@ -662,7 +662,9 @@ contract UselessFurnace is Context, Ownable {
    * Percent of Contract Balance used to purchase and burn USELESS
    */ 
   function setBuyAndBurnPercent(uint8 newPercent) public onlyOwner {
-      _buyAndBurnPercent = newPercent;
+      if (newPercent > 0 && newPercent <= 100) {
+        _buyAndBurnPercent = newPercent;
+      }
   }
   /**
    * Internal Function which calls UniswapRouter function 
