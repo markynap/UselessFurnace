@@ -646,6 +646,23 @@ contract UselessFurnace is Context, Ownable {
   }
   
   /**
+   * 
+   * Updates the Burn Wallet Address for USELESS
+   */
+  function setUSELESSBurnAddress(address payable newBurnAddress) public onlyOwner {
+    _burnWallet = newBurnAddress;
+  }
+  
+  /**
+   * Percent of Contract Balance used to purchase and burn USELESS
+   */ 
+  function setBuyAndBurnPercent(uint8 newPercent) public onlyOwner {
+      if (newPercent > 0 && newPercent <= 100) {
+        _buyAndBurnPercent = newPercent;
+      }
+  }
+  
+  /**
    * Buys USELESS Tokens and sends them to the burn wallet
    */ 
   function buyAndBurn() public onlyOwner {
@@ -660,20 +677,14 @@ contract UselessFurnace is Context, Ownable {
      
      emit BuyAndBurn(buyBurnBalance);
   }
+  
   /**
    * The number of BNB that is to be used to purchase and burn USELESS
    */
   function calculateBuyBurnAmount(uint256 amount) private view returns (uint256){
       return amount.mul(_buyAndBurnPercent.div(100));
   }
-  /**
-   * Percent of Contract Balance used to purchase and burn USELESS
-   */ 
-  function setBuyAndBurnPercent(uint8 newPercent) public onlyOwner {
-      if (newPercent > 0 && newPercent <= 100) {
-        _buyAndBurnPercent = newPercent;
-      }
-  }
+  
   /**
    * Internal Function which calls UniswapRouter function 
    */ 
