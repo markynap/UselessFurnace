@@ -636,6 +636,14 @@ contract UselessFurnace is Context, Ownable {
   function setUniswapV2Router(address _uniswapV2Router) public onlyOwner {
     uniswapV2Router = IUniswapV2Router02(_uniswapV2Router);
   }
+
+  /**
+   * 
+   * Updates the Contract Address for USELESS
+   */
+  function setUSELESSContractAddress(address payable newUselessAddress) public onlyOwner {
+    _uselessAddr = newUselessAddress;
+  }
   
   /**
    * Buys USELESS Tokens and sends them to the burn wallet
