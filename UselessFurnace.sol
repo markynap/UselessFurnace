@@ -583,12 +583,8 @@ interface IUniswapV2Router02 {
 }
 /**
  * 
- * Supports Safemoon by:
- *  Offsetting the negatives associated with Automatic Liquidity
- *  Raising the price and price floor
- *  Contributing to volume and reflections (transfer of burnt tokens)
- *  Asynchronous burning of safemoon apart from standard reflection-based method
- * 
+ * BNB Sent to this contract will be used to automatically buy/burn USELESS
+ * And Emits and Event to the blockchain with how much BNB was used
  */
 contract UselessFurnace is Context, Ownable {
     
