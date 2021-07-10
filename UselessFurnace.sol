@@ -25,6 +25,75 @@ contract Context {
   }
 }
 
+interface IERC20 {
+
+    function totalSupply() external view returns (uint256);
+
+    /**
+     * @dev Returns the amount of tokens owned by `account`.
+     */
+    function balanceOf(address account) external view returns (uint256);
+
+    /**
+     * @dev Moves `amount` tokens from the caller's account to `recipient`.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
+    function transfer(address recipient, uint256 amount) external returns (bool);
+
+    /**
+     * @dev Returns the remaining number of tokens that `spender` will be
+     * allowed to spend on behalf of `owner` through {transferFrom}. This is
+     * zero by default.
+     *
+     * This value changes when {approve} or {transferFrom} are called.
+     */
+    function allowance(address owner, address spender) external view returns (uint256);
+
+    /**
+     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * IMPORTANT: Beware that changing an allowance with this method brings the risk
+     * that someone may use both the old and the new allowance by unfortunate
+     * transaction ordering. One possible solution to mitigate this race
+     * condition is to first reduce the spender's allowance to 0 and set the
+     * desired value afterwards:
+     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+     *
+     * Emits an {Approval} event.
+     */
+    function approve(address spender, uint256 amount) external returns (bool);
+
+    /**
+     * @dev Moves `amount` tokens from `sender` to `recipient` using the
+     * allowance mechanism. `amount` is then deducted from the caller's
+     * allowance.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+
+    /**
+     * @dev Emitted when `value` tokens are moved from one account (`from`) to
+     * another (`to`).
+     *
+     * Note that `value` may be zero.
+     */
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    /**
+     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
+     * a call to {approve}. `value` is the new allowance.
+     */
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+}
+
 /**
  * @dev Collection of functions related to the address type
  */
@@ -598,8 +667,8 @@ contract UselessFurnace is Context, Ownable {
   // burn wallet address
   address payable private _burnWallet = payable(0x000000000000000000000000000000000000dEaD);
   
-  // what percent of our BNB we buy and burn USELESS with
-  uint8 public _buyAndBurnPercent = 100;
+  // multisig wallet
+  address payable private _multisig = payable(0x405dCC72BF70292Cc23B80F3f01939113cF36A0c);
   
   // Total Amount of BNB that has been used to Buy/Sell USELESS
   uint256 public _totalBNBUsedToBuyAndBurnUSELESS = 0;
@@ -611,7 +680,145 @@ contract UselessFurnace is Context, Ownable {
   event BuyAndBurn(
     uint256 amountBurned
   );
+  
+  event BuyBack(
+    uint256 amountBought
+  );
+  
+  event AddUSELESSLiquidity(
+    uint256 uselessAmount,
+    uint256 bnbAmount
+  );
 
+  /**
+   * Buys USELESS Tokens and sends them to the burn wallet
+   * @param percentOfBNB - Percentage of BNB Inside the contract to buy/burn with
+   */ 
+  function buyAndBurn(uint8 percentOfBNB) public onlyOwner {
+      
+     uint256 buyBurnBalance = calculateTransferAmount(address(this).balance, percentOfBNB);
+     
+     buyAndBurnUseless(buyBurnBalance);
+     
+     _totalBNBUsedToBuyAndBurnUSELESS = _totalBNBUsedToBuyAndBurnUSELESS.add(buyBurnBalance);
+     
+     emit BuyAndBurn(buyBurnBalance);
+  }
+  
+  /**
+   * Buys USELESS with BNB Stored in the contract, and stores the USELESS in the contract
+   * @param ratioOfBNB - Percentage of contract's BNB to Buy/Burn
+   */ 
+  function justBuyBack(uint8 ratioOfBNB) public onlyOwner {
+      
+    require(ratioOfBNB <= 100, 'Cannot have a ratio over 100%');
+    // calculate the amount being transfered 
+    uint256 transferAMT = calculateTransferAmount(address(this).balance, ratioOfBNB);
+    
+    // Uniswap pair path for BNB -> USELESS
+    address[] memory path = new address[](2);
+    path[0] = uniswapV2Router.WETH();
+    path[1] = _uselessAddr;
+    
+    // Swap BNB for USELESS
+    uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: transferAMT}(
+        0, // accept any amount of USELESS
+        path,
+        address(this), // Store in Contract
+        block.timestamp.add(300)
+    );  
+      
+    emit BuyBack(transferAMT);
+  }
+  
+  /**
+   * 
+   * 
+   */
+   function addUSELESSLiquidity() public onlyOwner {
+       
+    uint256 contractBalance = IERC20(_uselessAddr).balanceOf(address(this));
+    
+    // split the contract balance in half
+    uint256 half = contractBalance.div(2);
+    uint256 otherHalf = contractBalance.sub(half);
+
+    // balance of BNB before we swap
+    uint256 initialBalance = address(this).balance;
+
+    // swap tokens for BNB
+    swapTokensForBNB(half);
+
+    // how many tokens were received from swap
+    uint256 newBalance = address(this).balance.sub(initialBalance);
+
+    // add liquidity to Pancakeswap
+    addLiquidity(otherHalf, newBalance);
+        
+    emit AddUSELESSLiquidity(otherHalf, newBalance);
+   }
+  
+    
+  /**
+   * Internal Function which calls UniswapRouter function 
+   */ 
+  function buyAndBurnUseless(uint256 tokenAmount) private {
+    
+    // Uniswap pair path for BNB -> USELESS
+    address[] memory path = new address[](2);
+    path[0] = uniswapV2Router.WETH();
+    path[1] = _uselessAddr;
+    
+    // Swap BNB for USELESS
+    uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: tokenAmount}(
+        0, // accept any amount of USELESS
+        path,
+        _burnWallet, // Burn Address
+        block.timestamp.add(300)
+    );  
+      
+  }
+  
+  function swapTokensForBNB(uint256 tokenAmount) private {
+    // generate the uniswap pair path for token -> weth
+    address[] memory path = new address[](2);
+    path[0] = _uselessAddr;
+    path[1] = uniswapV2Router.WETH();
+
+    IERC20(_uselessAddr).approve(address(uniswapV2Router), tokenAmount);
+
+    // make the swap
+    uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+        tokenAmount,
+        0, // accept any amount of ETH
+        path,
+        address(this),
+        block.timestamp
+    );
+    }
+    
+  /**
+   * Adds USELESS and BNB to the USELESS/BNB Liquidity Pool
+   */ 
+  function addLiquidity(uint256 uselessAmount, uint256 bnbAmount) private {
+       
+    IERC20(_uselessAddr).approve(address(uniswapV2Router), uselessAmount);
+
+    // add the liquidity
+    uniswapV2Router.addLiquidityETH{value: bnbAmount}(
+        _uselessAddr,
+        uselessAmount,
+        0,
+        0,
+        _multisig,
+        block.timestamp.add(300)
+    );
+    }
+  
+  function calculateTransferAmount(uint256 amount, uint8 fee) private pure returns (uint256){
+     return amount.sub((amount.mul(fee)).div(100));
+  }
+    
   /**
    * @dev Returns the owner of the contract
    */
@@ -632,6 +839,13 @@ contract UselessFurnace is Context, Ownable {
   function setUniswapV2Router(address _uniswapV2Router) public onlyOwner {
     uniswapV2Router = IUniswapV2Router02(_uniswapV2Router);
   }
+  
+  /**
+   * Updates the Uniswap Router and Uniswap pairing for ETH In Case of migration
+   */
+  function setMultiSig(address payable _nMultiSig) public onlyOwner {
+    _multisig = _nMultiSig;
+  }
 
   /**
    * 
@@ -649,59 +863,8 @@ contract UselessFurnace is Context, Ownable {
     _burnWallet = newBurnAddress;
   }
   
-  /**
-   * Percent of Contract Balance used to purchase and burn USELESS
-   */ 
-  function setBuyAndBurnPercent(uint8 newPercent) public onlyOwner {
-      if (newPercent > 0 && newPercent <= 100) {
-        _buyAndBurnPercent = newPercent;
-      }
-  }
-  
-  /**
-   * Buys USELESS Tokens and sends them to the burn wallet
-   */ 
-  function buyAndBurn() public onlyOwner {
-      
-     uint256 balance = address(this).balance;
-     
-     uint256 buyBurnBalance = calculateBuyBurnAmount(balance);
-     
-     buyAndBurnUseless(buyBurnBalance);
-     
-     _totalBNBUsedToBuyAndBurnUSELESS = _totalBNBUsedToBuyAndBurnUSELESS.add(buyBurnBalance);
-     
-     emit BuyAndBurn(buyBurnBalance);
-  }
-  
-  /**
-   * The number of BNB that is to be used to purchase and burn USELESS
-   */
-  function calculateBuyBurnAmount(uint256 amount) private view returns (uint256){
-      return amount.mul(_buyAndBurnPercent.div(100));
-  }
-  
-  /**
-   * Internal Function which calls UniswapRouter function 
-   */ 
-  function buyAndBurnUseless(uint256 tokenAmount) private {
-    
-    // Uniswap pair path for BNB -> USELESS
-    address[] memory path = new address[](2);
-    path[0] = uniswapV2Router.WETH();
-    path[1] = _uselessAddr;
-    
-    // Swap BNB for USELESS
-    uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: tokenAmount}(
-        0, // accept any amount of USELESS
-        path,
-        _burnWallet, // Burn Address
-        block.timestamp.add(300)
-    );  
-      
-  }
 
-  //to recieve ETH from uniswapV2Router when swaping
+    //to recieve ETH from uniswapV2Router when swaping
     receive() external payable {}
     
 }
