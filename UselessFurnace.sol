@@ -738,7 +738,7 @@ contract UselessFurnace is Context, Ownable {
    * Buys USELESS Tokens and sends them to the burn wallet
    * @param percentOfBNB - Percentage of BNB Inside the contract to buy/burn with
    */ 
-  function buyAndBurn(uint8 percentOfBNB) public onlyOwner {
+  function buyAndBurn(uint8 percentOfBNB) private {
       
      uint256 buyBurnBalance = calculateTransferAmount(address(this).balance, percentOfBNB);
      
@@ -754,7 +754,7 @@ contract UselessFurnace is Context, Ownable {
    * Similar to swapAndLiquify
    * @param percent - Percentage out of 100 for how much USELESS to be used in swapAndLiquify
    */
-   function swapAndLiquify(uint8 percent) public onlyOwner {
+   function swapAndLiquify(uint8 percent) private {
        
     uint256 oldContractBalance = IERC20(_uselessAddr).balanceOf(address(this));
     
@@ -787,7 +787,7 @@ contract UselessFurnace is Context, Ownable {
    * Uses BNB in Contract to Purchase Useless, pairs with remaining BNB and adds to Liquidity Pool
    * Similar to swapAndLiquify
    */
-   function reverseSwapAndLiquify() public onlyOwner {
+   function reverseSwapAndLiquify() private {
       
     // BNB Balance before the swap
     uint256 initialBalance = address(this).balance;
