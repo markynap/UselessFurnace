@@ -672,7 +672,7 @@ contract UselessFurnace is Context, Ownable {
   
   // Total Amount of BNB that has been used to Buy/Sell USELESS
   uint256 public _totalBNBUsedToBuyAndBurnUSELESS = 0;
-  
+
   // Initialize Pancakeswap Router
   IUniswapV2Router02 private uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E);
   
@@ -707,7 +707,7 @@ contract UselessFurnace is Context, Ownable {
   
   /**
    * Buys USELESS with BNB Stored in the contract, and stores the USELESS in the contract
-   * @param ratioOfBNB - Percentage of contract's BNB to Buy/Burn
+   * @param ratioOfBNB - Percentage of contract's BNB to Buy
    */ 
   function justBuyBack(uint8 ratioOfBNB) public onlyOwner {
       
@@ -732,10 +732,10 @@ contract UselessFurnace is Context, Ownable {
   }
   
   /**
-   * 
-   * 
+   * Sells half the USELESS in the contract address for BNB, pairs it and adds to Liquidity Pool
+   * Similar to swapAndLiquify
    */
-   function addUSELESSLiquidity() public onlyOwner {
+   function swapAndLiquifyUSELESS() public onlyOwner {
        
     uint256 contractBalance = IERC20(_uselessAddr).balanceOf(address(this));
     
@@ -756,6 +756,40 @@ contract UselessFurnace is Context, Ownable {
     addLiquidity(otherHalf, newBalance);
         
     emit AddUSELESSLiquidity(otherHalf, newBalance);
+   }
+   
+   /**
+   * Uses BNB in Contract to Purchase Useless, pairs with remaining BNB and adds to Liquidity Pool
+   * Similar to swapAndLiquify
+   */
+   function buyAndAddLiquidityUSELESS() public onlyOwner {
+      
+    // BNB Balance before the swap
+    uint256 initialBalance = address(this).balance;
+    
+    // USELESS Balance before the Swap
+    uint256 contractBalance = IERC20(_uselessAddr).balanceOf(address(this));
+
+    // Swap 50% of the BNB in Contract for USELESS Tokens
+    justBuyBack(50);
+
+    // how much bnb was spent on the swap
+    uint256 bnbInSwap = initialBalance.sub(address(this).balance);
+    
+    // how many USELESS Tokens do we have now?
+    uint256 currentBalance = IERC20(_uselessAddr).balanceOf(address(this));
+
+    // Get Exact Number of USELESS We Swapped For
+    uint256 diff = currentBalance.sub(contractBalance);
+    
+    if (bnbInSwap > address(this).balance) {
+        bnbInSwap = address(this).balance;
+    }
+    
+    // add liquidity to Pancakeswap
+    addLiquidity(diff, bnbInSwap);
+        
+    emit AddUSELESSLiquidity(diff, bnbInSwap);
    }
   
     
@@ -779,6 +813,9 @@ contract UselessFurnace is Context, Ownable {
       
   }
   
+  /**
+   * Swaps USELESS for BNB using the USELESS/BNB Pool
+   */ 
   function swapTokensForBNB(uint256 tokenAmount) private {
     // generate the uniswap pair path for token -> weth
     address[] memory path = new address[](2);
