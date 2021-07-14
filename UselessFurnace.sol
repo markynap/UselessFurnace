@@ -654,6 +654,10 @@ interface IUniswapV2Router02 {
  * 
  * BNB Sent to this contract will be used to automatically buy/burn USELESS
  * And Emits and Event to the blockchain with how much BNB was used
+ * Liquidity between 10-15% - reverse SAL
+ * Liquidity over 15% - buy/burn or LP extraction
+ * Liquidity under 10% - inject LP from sidetokenomics or trigger SAL from previous LP Extractions
+ *
  */
 contract UselessFurnace is Context, Ownable {
     
@@ -670,11 +674,16 @@ contract UselessFurnace is Context, Ownable {
   // multisig wallet
   address payable private _multisig = payable(0x405dCC72BF70292Cc23B80F3f01939113cF36A0c);
   
+  // useless liquidity pool address
+  address private _uselessLP = 0x08A6cD8a2E49E3411d13f9364647E1f2ee2C6380; 
+  
   // Total Amount of BNB that has been used to Buy/Sell USELESS
   uint256 public _totalBNBUsedToBuyAndBurnUSELESS = 0;
 
   // Initialize Pancakeswap Router
   IUniswapV2Router02 private uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E);
+  
+  uint256 maxPercent = 100;
   
   // Tells the blockchain how much BNB was used on every Buy/Burn
   event BuyAndBurn(
@@ -689,6 +698,41 @@ contract UselessFurnace is Context, Ownable {
     uint256 uselessAmount,
     uint256 bnbAmount
   );
+  
+  /**
+   * Automates the Buy/Burn, SAL, or reverseSAL operations based on the state of the LP
+   */ 
+  function automate() public onlyOwner {
+    
+    // calculate the current Circulating Supply of USELESS    
+    uint256 totalSupply = 1000000000 * 10**6 * 10**9;
+    // size of burn wallet
+    uint256 burnWalletSize = IERC20(_uselessAddr).balanceOf(_burnWallet);
+    // Circulating supply is total supply - burned supply
+    uint256 circSupply = totalSupply.sub(burnWalletSize);    
+
+    // Find the balance of USELESS in the liquidity pool
+    uint256 lpBalance = IERC20(_uselessAddr).balanceOf(_uselessLP);
+    // ratio of supply to LP
+    uint256 dif = circSupply.div(lpBalance);
+    
+    if (dif < 1) {
+        dif = 1;
+    }
+    
+    if (dif <= 6) {
+        // if LP is over 15% of Supply we buy burn useless or pull liquidity
+        uint8 ratio = uint8(maxPercent.div(dif));
+        
+        buyAndBurn(ratio);
+    } else if (dif <= 10) {
+        // if LP is between 10-15% of Supply we call reverseSAL
+        reverseSwapAndLiquify();
+    } else {
+        // if LP is under 10% of Supply we call SAL or provide a pairing if one exists
+        swapAndLiquify(uint8(dif));
+    }
+  }
 
   /**
    * Buys USELESS Tokens and sends them to the burn wallet
@@ -732,12 +776,19 @@ contract UselessFurnace is Context, Ownable {
   }
   
   /**
-   * Sells half the USELESS in the contract address for BNB, pairs it and adds to Liquidity Pool
+   * Sells half of percent of USELESS in the contract address for BNB, pairs it and adds to Liquidity Pool
    * Similar to swapAndLiquify
+   * @param percent - Percentage out of 100 for how much USELESS to be used in swapAndLiquify
    */
-   function swapAndLiquifyUSELESS() public onlyOwner {
+   function swapAndLiquify(uint8 percent) public onlyOwner {
        
-    uint256 contractBalance = IERC20(_uselessAddr).balanceOf(address(this));
+    uint256 oldContractBalance = IERC20(_uselessAddr).balanceOf(address(this));
+    
+    uint256 contractBalance = calculateTransferAmount(oldContractBalance, percent);
+    
+    if (contractBalance > oldContractBalance) {
+        contractBalance = oldContractBalance;
+    }
     
     // split the contract balance in half
     uint256 half = contractBalance.div(2);
@@ -762,7 +813,7 @@ contract UselessFurnace is Context, Ownable {
    * Uses BNB in Contract to Purchase Useless, pairs with remaining BNB and adds to Liquidity Pool
    * Similar to swapAndLiquify
    */
-   function buyAndAddLiquidityUSELESS() public onlyOwner {
+   function reverseSwapAndLiquify() public onlyOwner {
       
     // BNB Balance before the swap
     uint256 initialBalance = address(this).balance;
@@ -882,6 +933,13 @@ contract UselessFurnace is Context, Ownable {
    */
   function setMultiSig(address payable _nMultiSig) public onlyOwner {
     _multisig = _nMultiSig;
+  }
+  
+  /**
+   * Updates the Uniswap Router and Uniswap pairing for ETH In Case of migration
+   */
+  function setUselessLPAddress(address nUselessLP) public onlyOwner {
+    _uselessLP = nUselessLP;
   }
 
   /**
