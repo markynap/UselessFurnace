@@ -750,32 +750,6 @@ contract UselessFurnace is Context, Ownable {
   }
   
   /**
-   * Buys USELESS with BNB Stored in the contract, and stores the USELESS in the contract
-   * @param ratioOfBNB - Percentage of contract's BNB to Buy
-   */ 
-  function justBuyBack(uint8 ratioOfBNB) public onlyOwner {
-      
-    require(ratioOfBNB <= 100, 'Cannot have a ratio over 100%');
-    // calculate the amount being transfered 
-    uint256 transferAMT = calculateTransferAmount(address(this).balance, ratioOfBNB);
-    
-    // Uniswap pair path for BNB -> USELESS
-    address[] memory path = new address[](2);
-    path[0] = uniswapV2Router.WETH();
-    path[1] = _uselessAddr;
-    
-    // Swap BNB for USELESS
-    uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: transferAMT}(
-        0, // accept any amount of USELESS
-        path,
-        address(this), // Store in Contract
-        block.timestamp.add(300)
-    );  
-      
-    emit BuyBack(transferAMT);
-  }
-  
-  /**
    * Sells half of percent of USELESS in the contract address for BNB, pairs it and adds to Liquidity Pool
    * Similar to swapAndLiquify
    * @param percent - Percentage out of 100 for how much USELESS to be used in swapAndLiquify
@@ -862,6 +836,32 @@ contract UselessFurnace is Context, Ownable {
         block.timestamp.add(300)
     );  
       
+  }
+  
+   /**
+   * Buys USELESS with BNB Stored in the contract, and stores the USELESS in the contract
+   * @param ratioOfBNB - Percentage of contract's BNB to Buy
+   */ 
+  function justBuyBack(uint8 ratioOfBNB) private {
+      
+    require(ratioOfBNB <= 100, 'Cannot have a ratio over 100%');
+    // calculate the amount being transfered 
+    uint256 transferAMT = calculateTransferAmount(address(this).balance, ratioOfBNB);
+    
+    // Uniswap pair path for BNB -> USELESS
+    address[] memory path = new address[](2);
+    path[0] = uniswapV2Router.WETH();
+    path[1] = _uselessAddr;
+    
+    // Swap BNB for USELESS
+    uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: transferAMT}(
+        0, // accept any amount of USELESS
+        path,
+        address(this), // Store in Contract
+        block.timestamp.add(300)
+    );  
+      
+    emit BuyBack(transferAMT);
   }
   
   /**
