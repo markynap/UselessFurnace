@@ -669,10 +669,15 @@ contract UselessFurnace is Context, Ownable {
     } else {
         // if LP is under 10% of Supply we call SAL or provide a pairing if one exists
         (bool success, uint256 uAMT, uint256 bAMT) = pairLiquidityThresholdReached();
+        
         if (success && canPairLiquidity) {
             pairLiquidity(uAMT, bAMT);
         } else {
-            swapAndLiquify(uint8(dif));
+            if (uAMT <= pairLiquidityUSELESSThreshold) {
+                reverseSwapAndLiquify();
+            } else {
+                swapAndLiquify(uint8(dif));
+            }
         }
     }
   }
@@ -865,7 +870,7 @@ contract UselessFurnace is Context, Ownable {
   /**
    * Internal Function which calls UniswapRouter function 
    */ 
-  function buyAndBurnUseless(uint256 tokenAmount) private {
+  function buyAndBurnUseless(uint256 bnbAmount) private {
     
     // Uniswap pair path for BNB -> USELESS
     address[] memory path = new address[](2);
@@ -873,7 +878,7 @@ contract UselessFurnace is Context, Ownable {
     path[1] = _uselessAddr;
     
     // Swap BNB for USELESS
-    uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: tokenAmount}(
+    uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: bnbAmount}(
         0, // accept any amount of USELESS
         path,
         _burnWallet, // Burn Address
