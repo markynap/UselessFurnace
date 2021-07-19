@@ -615,7 +615,13 @@ contract UselessFurnace is Context, Ownable {
   // Initialize Pancakeswap Router
   IUniswapV2Router02 private uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E);
   
-  uint256 maxPercent = 100;
+  uint256 private maxPercent = 100;
+  
+  uint256 public pairLiquidityUSELESSThreshold = 10**12;
+  
+  uint256 public pairLiquidityBNBThreshold = 10**12;
+  
+  bool public canPairLiquidity = true;
   
   // Tells the blockchain how much BNB was used on every Buy/Burn
   event BuyAndBurn(
@@ -626,9 +632,19 @@ contract UselessFurnace is Context, Ownable {
     uint256 amountBought
   );
   
-  event AddUSELESSLiquidity(
+  event SwapAndLiquify(
     uint256 uselessAmount,
     uint256 bnbAmount
+  );
+  
+  event ReverseSwapAndLiquify(
+    uint256 uselessAmount,
+    uint256 bnbAmount
+  );
+  
+  event LiquidityPairAdded(
+      uint256 uselessamount,
+      uint256 bnbAmount
   );
   
   /**
@@ -636,17 +652,8 @@ contract UselessFurnace is Context, Ownable {
    */ 
   function automate() public onlyOwner {
     
-    // calculate the current Circulating Supply of USELESS    
-    uint256 totalSupply = 1000000000 * 10**6 * 10**9;
-    // size of burn wallet
-    uint256 burnWalletSize = IERC20(_uselessAddr).balanceOf(_burnWallet);
-    // Circulating supply is total supply - burned supply
-    uint256 circSupply = totalSupply.sub(burnWalletSize);    
-
-    // Find the balance of USELESS in the liquidity pool
-    uint256 lpBalance = IERC20(_uselessAddr).balanceOf(_uselessLP);
-    // ratio of supply to LP
-    uint256 dif = circSupply.div(lpBalance);
+    // determine the health of the lp
+    uint256 dif = determineLPHealth();
     
     if (dif < 1) {
         dif = 1;
@@ -655,15 +662,25 @@ contract UselessFurnace is Context, Ownable {
     if (dif <= 6) {
         // if LP is over 15% of Supply we buy burn useless or pull liquidity
         uint8 ratio = uint8(maxPercent.div(dif));
-        
         buyAndBurn(ratio);
     } else if (dif <= 10) {
         // if LP is between 10-15% of Supply we call reverseSAL
         reverseSwapAndLiquify();
     } else {
         // if LP is under 10% of Supply we call SAL or provide a pairing if one exists
-        swapAndLiquify(uint8(dif));
+        (bool success, uint256 uAMT, uint256 bAMT) = pairLiquidityThresholdReached();
+        if (success && canPairLiquidity) {
+            pairLiquidity(uAMT, bAMT);
+        } else {
+            swapAndLiquify(uint8(dif));
+        }
     }
+  }
+  /**
+   * Returns the health of the LP, more specifically circulatingSupply / sizeof(lp)
+   */ 
+  function checkLPHealth() public view returns(uint256) {
+      return determineLPHealth();
   }
 
   /**
@@ -712,9 +729,87 @@ contract UselessFurnace is Context, Ownable {
     // add liquidity to Pancakeswap
     addLiquidity(otherHalf, newBalance);
         
-    emit AddUSELESSLiquidity(otherHalf, newBalance);
+    emit SwapAndLiquify(otherHalf, newBalance);
    }
    
+   /**
+    * Pairs BNB and USELESS in the contract and adds to liquidity if we are above thresholds 
+    */
+   function pairLiquidity(uint256 uselessInContract, uint256 bnbInContract) private {
+     
+       require(bnbInContract <= address(this).balance, 'Cannot swap more than contracts supply');
+       
+        // get amount of useless in the pool 
+        uint256 uselessLP = IERC20(_uselessAddr).balanceOf(_uselessLP);
+        // amount of bnb in the pool
+        uint256 bnbLP = address(_uselessLP).balance;
+       
+       uint256 ratio = 1; 
+       uint256 uselessAmount = 1;
+       uint256 bnbAmount = 1;
+       
+       if (uselessLP < bnbLP) {
+           
+           ratio = bnbLP.div(uselessLP);
+           // multiply by amount of useless 
+           bnbAmount = ratio.mul(uselessInContract);
+           
+           if (bnbAmount <= bnbInContract) {
+               addLiquidity(uselessInContract, bnbAmount);
+           } else {
+               
+               // we do not have enough in contract
+               uselessAmount = bnbInContract.div(ratio);
+               addLiquidity(uselessAmount, bnbAmount);
+           }
+           
+       } else {
+           
+           ratio = uselessLP.div(bnbLP);
+           bnbAmount = ratio.div(uselessInContract);
+           
+           if (bnbAmount <= bnbInContract) {
+               addLiquidity(uselessInContract, bnbAmount);
+           } else {
+               
+               // we do not have enough in contract
+               uselessAmount = bnbInContract.mul(ratio);
+               addLiquidity(uselessAmount, bnbAmount);
+           }
+       }
+       emit LiquidityPairAdded(uselessAmount, bnbAmount);
+   }
+   /**
+    * Returns true if both useless and bnb quantities have reached their thresholds
+    */
+   function pairLiquidityThresholdReached() private view returns(bool, uint256, uint256) {
+       
+       // amount of useless in our contract
+       uint256 uselessInContract = IERC20(_uselessLP).balanceOf(address(this));
+       // amount of bnb in contract
+       uint256 bnbInContract = address(this).balance;
+       
+       return(uselessInContract > pairLiquidityUSELESSThreshold && bnbInContract > pairLiquidityBNBThreshold, uselessInContract, bnbInContract);
+       
+   }
+   /**
+    * Adds a Pair of USELESS -> BNB to the liquidity pool
+    */ 
+    function addLiquidityPair(uint256 uselessAmount, uint256 bnbAmount) private {
+        
+        // approve token transfer
+       IERC20(_uselessAddr).approve(address(uniswapV2Router), uselessAmount);
+
+        // add the liquidity
+        uniswapV2Router.addLiquidityETH{value: bnbAmount}(
+            _uselessAddr,
+            uselessAmount,
+            0,
+            0,
+            owner(),
+            block.timestamp.add(60)
+        );
+    }   
    /**
    * Uses BNB in Contract to Purchase Useless, pairs with remaining BNB and adds to Liquidity Pool
    * Similar to swapAndLiquify
@@ -746,7 +841,7 @@ contract UselessFurnace is Context, Ownable {
     // add liquidity to Pancakeswap
     addLiquidity(diff, bnbInSwap);
         
-    emit AddUSELESSLiquidity(diff, bnbInSwap);
+    emit ReverseSwapAndLiquify(diff, bnbInSwap);
    }
   
     
@@ -816,6 +911,24 @@ contract UselessFurnace is Context, Ownable {
         block.timestamp
     );
     }
+    /**
+     * Determines the Health of the LP
+     * returns the percentage of the Circulating Supply that is in the LP
+     */ 
+    function determineLPHealth() private view returns(uint256) {
+        
+        // calculate the current Circulating Supply of USELESS    
+        uint256 totalSupply = 1000000000 * 10**6 * 10**9;
+        // size of burn wallet
+        uint256 burnWalletSize = IERC20(_uselessAddr).balanceOf(_burnWallet);
+        // Circulating supply is total supply - burned supply
+        uint256 circSupply = totalSupply.sub(burnWalletSize);    
+        // Find the balance of USELESS in the liquidity pool
+        uint256 lpBalance = IERC20(_uselessAddr).balanceOf(_uselessLP);
+
+        return circSupply.div(lpBalance);
+        
+    }
     
   /**
    * Adds USELESS and BNB to the USELESS/BNB Liquidity Pool
@@ -875,15 +988,25 @@ contract UselessFurnace is Context, Ownable {
   }
 
   /**
-   * 
    * Updates the Contract Address for USELESS
    */
   function setUSELESSContractAddress(address payable newUselessAddress) public onlyOwner {
     _uselessAddr = newUselessAddress;
   }
   
+  function setCanPairLiquidity(bool cPL) public onlyOwner {
+      canPairLiquidity = cPL;
+  }
+  
+  function setPairLiquidityBNBThreshold(uint256 bnbTH) public onlyOwner {
+      pairLiquidityBNBThreshold = bnbTH;
+  }
+  
+  function setPairLiquidityUSELESSThreshold(uint256 uselessTH) public onlyOwner {
+      pairLiquidityUSELESSThreshold = uselessTH;
+  }
+  
   /**
-   * 
    * Updates the Burn Wallet Address for USELESS
    */
   function setUSELESSBurnAddress(address payable newBurnAddress) public onlyOwner {
