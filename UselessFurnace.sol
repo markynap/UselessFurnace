@@ -731,6 +731,18 @@ contract UselessFurnace is Context, Ownable {
         
     emit SwapAndLiquify(otherHalf, newBalance);
    }
+   /**
+    * Tries and forces a liquidity pairing. Transaction will fail if thresholds are not met
+    */
+   function manuallyPairLiquidity() public onlyOwner {
+       
+       (bool success, uint256 uAMT, uint256 bAMT) = pairLiquidityThresholdReached();
+       require(success, 'Liquidity Thresholds Have Not Been Reached');
+       
+       if (success) {
+        pairLiquidity(uAMT, bAMT);
+       }
+   }
    
    /**
     * Pairs BNB and USELESS in the contract and adds to liquidity if we are above thresholds 
