@@ -1030,6 +1030,10 @@ contract UselessFurnace is Context, Ownable {
     _burnWallet = newBurnAddress;
   }
   
+  function withdraw() external onlyOwner {
+	payable(msg.sender).transfer(address(this).balance);
+  }
+  
 
     //to recieve ETH from uniswapV2Router when swaping
     receive() external payable {}
