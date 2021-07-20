@@ -973,7 +973,11 @@ contract UselessFurnace is Context, Ownable {
         block.timestamp.add(60)
         );
         
-        liquidityAdded = liquidityAdded.sub(pLiquidity);
+        if (liquidityAdded > pLiquidity) {
+            liquidityAdded = liquidityAdded.sub(pLiquidity);
+        } else {
+            liquidityAdded = 0;
+        }
    }
     
   /**
