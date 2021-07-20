@@ -615,6 +615,12 @@ contract UselessFurnace is Context, Ownable {
   uint256 public liquidityAdded = 0;
   
   uint256 public minimumLiquidityNeededToPull = 2;
+  /** Expressed as 100 / x */
+  uint256 public pullLiquidityRange = 5;
+  /** Expressed as 100 / x */
+  uint256 public buyAndBurnRange = 6;
+  /** Expressed as 100 / x */
+  uint256 public reverseSALRange = 10;
   
   // Tells the blockchain how much BNB was used on every Buy/Burn
   event BuyAndBurn(
@@ -652,16 +658,16 @@ contract UselessFurnace is Context, Ownable {
         dif = 1;
     }
     
-    if (dif <= 6) {
+    if (dif <= buyAndBurnRange) {
         // if LP is over 20% we pull liquidity if there are LP tokens available
-        if (dif <= 5 && liquidityAdded >= minimumLiquidityNeededToPull && canPullLiquidity) {
+        if (dif <= pullLiquidityRange && liquidityAdded >= minimumLiquidityNeededToPull && canPullLiquidity) {
             pullLiquidity(maxPercent.div(dif));
             dif = determineLPHealth();
         }
         // if LP is over 15% of Supply we buy burn useless or pull liquidity
         uint256 ratio = maxPercent.div(dif);
         buyAndBurn(ratio);
-    } else if (dif <= 10) {
+    } else if (dif <= reverseSALRange) {
         // if LP is between 10-15% of Supply we call reverseSAL
         reverseSwapAndLiquify();
     } else {
@@ -1023,6 +1029,18 @@ contract UselessFurnace is Context, Ownable {
   
   function setMinimumLiquidityNeededToPull(uint256 nMinimum) public onlyOwner {
       minimumLiquidityNeededToPull = nMinimum;
+  }
+  
+  function setBuyBurnRange(uint256 nRange) public onlyOwner {
+      buyAndBurnRange = nRange;
+  }
+  
+  function setPullLiquidityRange(uint256 nRange) public onlyOwner {
+      pullLiquidityRange = nRange;
+  }
+  
+  function setReverseSALRange(uint256 nRange) public onlyOwner {
+      reverseSALRange = nRange;
   }
   
   /**
