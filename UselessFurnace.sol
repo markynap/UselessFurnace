@@ -687,7 +687,7 @@ contract UselessFurnace is Context, Ownable {
    */ 
   function buyAndBurn(uint256 percentOfBNB) public onlyOwner {
       
-     uint256 buyBurnBalance = calculateTransferAmount(address(this).balance, percentOfBNB);
+     uint256 buyBurnBalance = ((address(this).balance).mul(percentOfBNB)).div(100);
      
      buyAndBurnUseless(buyBurnBalance);
      
