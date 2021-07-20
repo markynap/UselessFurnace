@@ -598,28 +598,17 @@ contract UselessFurnace is Context, Ownable {
   
   // address of USELESS Smart Contract
   address payable private _uselessAddr = payable(0x2cd2664Ce5639e46c6a3125257361e01d0213657);
- 
   // burn wallet address
   address payable private _burnWallet = payable(0x000000000000000000000000000000000000dEaD);
-  
-  // multisig wallet
-  address payable private _multisig = payable(0x405dCC72BF70292Cc23B80F3f01939113cF36A0c);
-  
   // useless liquidity pool address
   address private _uselessLP = 0x08A6cD8a2E49E3411d13f9364647E1f2ee2C6380; 
-  
   // Total Amount of BNB that has been used to Buy/Sell USELESS
   uint256 public _totalBNBUsedToBuyAndBurnUSELESS = 0;
-
   // Initialize Pancakeswap Router
   IUniswapV2Router02 private uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E);
-  
   uint256 private maxPercent = 99;
-  
   uint256 public pairLiquidityUSELESSThreshold = 10**12;
-  
   uint256 public pairLiquidityBNBThreshold = 10**12;
-  
   bool public canPairLiquidity = true;
   
   // Tells the blockchain how much BNB was used on every Buy/Burn
@@ -847,25 +836,7 @@ contract UselessFurnace is Context, Ownable {
        return(uselessInContract > pairLiquidityUSELESSThreshold && bnbInContract > pairLiquidityBNBThreshold, uselessInContract, bnbInContract);
        
    }
-   /**
-    * Adds a Pair of USELESS -> BNB to the liquidity pool
-    */ 
-    function addLiquidityPair(uint256 uselessAmount, uint256 bnbAmount) private {
-        
-        // approve token transfer
-       IERC20(_uselessAddr).approve(address(uniswapV2Router), uselessAmount);
 
-        // add the liquidity
-        uniswapV2Router.addLiquidityETH{value: bnbAmount}(
-            _uselessAddr,
-            uselessAmount,
-            0,
-            0,
-            owner(),
-            block.timestamp.add(60)
-        );
-    }   
-    
   /**
    * Internal Function which calls UniswapRouter function 
    */ 
@@ -964,7 +935,7 @@ contract UselessFurnace is Context, Ownable {
         uselessAmount,
         0,
         0,
-        _multisig,
+        address(this),
         block.timestamp.add(300)
     );
     }
@@ -993,13 +964,6 @@ contract UselessFurnace is Context, Ownable {
    */
   function setUniswapV2Router(address _uniswapV2Router) public onlyOwner {
     uniswapV2Router = IUniswapV2Router02(_uniswapV2Router);
-  }
-  
-  /**
-   * Updates the Uniswap Router and Uniswap pairing for ETH In Case of migration
-   */
-  function setMultiSig(address payable _nMultiSig) public onlyOwner {
-    _multisig = _nMultiSig;
   }
   
   /**
