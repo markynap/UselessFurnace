@@ -594,7 +594,6 @@ interface IUniswapV2Router02 {
 contract UselessFurnace is Context, Ownable {
     
   using Address for address;
-  using SafeMath for uint8;
   using SafeMath for uint256;
   
   // address of USELESS Smart Contract
@@ -661,7 +660,7 @@ contract UselessFurnace is Context, Ownable {
     
     if (dif <= 6) {
         // if LP is over 15% of Supply we buy burn useless or pull liquidity
-        uint8 ratio = uint8(maxPercent.div(dif));
+        uint256 ratio = maxPercent.div(dif);
         buyAndBurn(ratio);
     } else if (dif <= 10) {
         // if LP is between 10-15% of Supply we call reverseSAL
@@ -676,7 +675,7 @@ contract UselessFurnace is Context, Ownable {
             if (uAMT <= pairLiquidityUSELESSThreshold) {
                 reverseSwapAndLiquify();
             } else {
-                swapAndLiquify(uint8(dif));
+                swapAndLiquify(dif);
             }
         }
     }
@@ -686,7 +685,7 @@ contract UselessFurnace is Context, Ownable {
    * Buys USELESS Tokens and sends them to the burn wallet
    * @param percentOfBNB - Percentage of BNB Inside the contract to buy/burn with
    */ 
-  function buyAndBurn(uint8 percentOfBNB) public onlyOwner {
+  function buyAndBurn(uint256 percentOfBNB) public onlyOwner {
       
      uint256 buyBurnBalance = calculateTransferAmount(address(this).balance, percentOfBNB);
      
@@ -702,7 +701,7 @@ contract UselessFurnace is Context, Ownable {
    * Similar to swapAndLiquify
    * @param percent - Percentage out of 100 for how much USELESS to be used in swapAndLiquify
    */
-   function swapAndLiquify(uint8 percent) public onlyOwner {
+   function swapAndLiquify(uint256 percent) public onlyOwner {
        
     uint256 oldContractBalance = IERC20(_uselessAddr).balanceOf(address(this));
     
@@ -891,7 +890,7 @@ contract UselessFurnace is Context, Ownable {
    * Buys USELESS with BNB Stored in the contract, and stores the USELESS in the contract
    * @param ratioOfBNB - Percentage of contract's BNB to Buy
    */ 
-  function justBuyBack(uint8 ratioOfBNB) private {
+  function justBuyBack(uint256 ratioOfBNB) private {
       
     require(ratioOfBNB <= 100, 'Cannot have a ratio over 100%');
     // calculate the amount being transfered 
@@ -970,8 +969,9 @@ contract UselessFurnace is Context, Ownable {
     );
     }
   
-  function calculateTransferAmount(uint256 amount, uint8 fee) private pure returns (uint256){
-     return amount.sub(amount.mul(fee).div(100));
+  function calculateTransferAmount(uint256 amount, uint256 fee) private pure returns (uint256){
+     uint256 tFee = (amount.mul(fee)).div(100);
+     return amount.sub(tFee);
   }
     
   /**
