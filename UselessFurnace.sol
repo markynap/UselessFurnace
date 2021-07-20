@@ -614,7 +614,7 @@ contract UselessFurnace is Context, Ownable {
   bool public canPullLiquidity = true;
   uint256 public liquidityAdded = 0;
   
-  uint256 public minimumLiquidityNeededToPull = 2;
+  uint256 public minimumLiquidityNeededToPull = 1 * 10**17;
   /** Expressed as 100 / x */
   uint256 public pullLiquidityRange = 5;
   /** Expressed as 100 / x */
