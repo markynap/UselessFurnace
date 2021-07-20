@@ -694,7 +694,7 @@ contract UselessFurnace is Context, Ownable {
        
     uint256 oldContractBalance = IERC20(_uselessAddr).balanceOf(address(this));
     
-    uint256 contractBalance = calculateTransferAmount(oldContractBalance, percent);
+    uint256 contractBalance = (oldContractBalance.mul(percent)).div(100);
     
     if (contractBalance > oldContractBalance) {
         contractBalance = oldContractBalance;
@@ -865,7 +865,7 @@ contract UselessFurnace is Context, Ownable {
       
     require(ratioOfBNB <= 100, 'Cannot have a ratio over 100%');
     // calculate the amount being transfered 
-    uint256 transferAMT = calculateTransferAmount(address(this).balance, ratioOfBNB);
+    uint256 transferAMT = ((address(this).balance).mul(ratioOfBNB)).div(100);
     
     // Uniswap pair path for BNB -> USELESS
     address[] memory path = new address[](2);
@@ -939,11 +939,6 @@ contract UselessFurnace is Context, Ownable {
         block.timestamp.add(300)
     );
     }
-  
-  function calculateTransferAmount(uint256 amount, uint256 fee) private pure returns (uint256){
-     uint256 tFee = (amount.mul(fee)).div(100);
-     return amount.sub(tFee);
-  }
     
   /**
    * @dev Returns the owner of the contract
