@@ -609,7 +609,12 @@ contract UselessFurnace is Context, Ownable {
   uint256 private maxPercent = 99;
   uint256 public pairLiquidityUSELESSThreshold = 10**12;
   uint256 public pairLiquidityBNBThreshold = 10**12;
+  
   bool public canPairLiquidity = true;
+  bool public canPullLiquidity = true;
+  uint256 public liquidityAdded = 0;
+  
+  uint256 public minimumLiquidityNeededToPull = 2;
   
   // Tells the blockchain how much BNB was used on every Buy/Burn
   event BuyAndBurn(
@@ -648,6 +653,11 @@ contract UselessFurnace is Context, Ownable {
     }
     
     if (dif <= 6) {
+        // if LP is over 20% we pull liquidity if there are LP tokens available
+        if (dif <= 5 && liquidityAdded >= minimumLiquidityNeededToPull && canPullLiquidity) {
+            pullLiquidity(maxPercent.div(dif));
+            dif = determineLPHealth();
+        }
         // if LP is over 15% of Supply we buy burn useless or pull liquidity
         uint256 ratio = maxPercent.div(dif);
         buyAndBurn(ratio);
@@ -676,7 +686,7 @@ contract UselessFurnace is Context, Ownable {
    */ 
   function buyAndBurn(uint256 percentOfBNB) public onlyOwner {
       
-     uint256 buyBurnBalance = ((address(this).balance).mul(percentOfBNB)).div(100);
+     uint256 buyBurnBalance = ((address(this).balance).mul(percentOfBNB)).div(10**2);
      
      buyAndBurnUseless(buyBurnBalance);
      
@@ -694,7 +704,7 @@ contract UselessFurnace is Context, Ownable {
        
     uint256 oldContractBalance = IERC20(_uselessAddr).balanceOf(address(this));
     
-    uint256 contractBalance = (oldContractBalance.mul(percent)).div(100);
+    uint256 contractBalance = (oldContractBalance.mul(percent)).div(10**2);
     
     if (contractBalance > oldContractBalance) {
         contractBalance = oldContractBalance;
@@ -765,7 +775,6 @@ contract UselessFurnace is Context, Ownable {
         pairLiquidity(uAMT, bAMT);
        }
    }
-   
    
    /**
     * Pairs BNB and USELESS in the contract and adds to liquidity if we are above thresholds 
@@ -865,7 +874,7 @@ contract UselessFurnace is Context, Ownable {
       
     require(ratioOfBNB <= 100, 'Cannot have a ratio over 100%');
     // calculate the amount being transfered 
-    uint256 transferAMT = ((address(this).balance).mul(ratioOfBNB)).div(100);
+    uint256 transferAMT = ((address(this).balance).mul(ratioOfBNB)).div(10**2);
     
     // Uniswap pair path for BNB -> USELESS
     address[] memory path = new address[](2);
@@ -930,7 +939,7 @@ contract UselessFurnace is Context, Ownable {
     IERC20(_uselessAddr).approve(address(uniswapV2Router), uselessAmount);
 
     // add the liquidity
-    uniswapV2Router.addLiquidityETH{value: bnbAmount}(
+    (,,uint256 amountLiquidity) = uniswapV2Router.addLiquidityETH{value: bnbAmount}(
         _uselessAddr,
         uselessAmount,
         0,
@@ -938,7 +947,28 @@ contract UselessFurnace is Context, Ownable {
         address(this),
         block.timestamp.add(300)
     );
+    
+    liquidityAdded = liquidityAdded.add(amountLiquidity);
     }
+
+    /**
+     * Removes Liquidity from the pool and stores the BNB and USELESS in the contract
+     */
+   function pullLiquidity(uint256 percentLiquidity) public onlyOwner {
+       
+       uint256 pLiquidity = (liquidityAdded.mul(percentLiquidity)).div(10**2);
+       
+       uniswapV2Router.removeLiquidityETH(
+        _uselessAddr,
+        pLiquidity,
+        0,
+        0,
+        address(this),
+        block.timestamp.add(60)
+        );
+        
+        liquidityAdded = liquidityAdded.sub(pLiquidity);
+   }
     
   /**
    * @dev Returns the owner of the contract
@@ -985,6 +1015,14 @@ contract UselessFurnace is Context, Ownable {
   
   function setPairLiquidityUSELESSThreshold(uint256 uselessTH) public onlyOwner {
       pairLiquidityUSELESSThreshold = uselessTH;
+  }
+  
+  function setCanPullLiquidity(bool canPull) public onlyOwner {
+      canPullLiquidity = canPull;
+  }
+  
+  function setMinimumLiquidityNeededToPull(uint256 nMinimum) public onlyOwner {
+      minimumLiquidityNeededToPull = nMinimum;
   }
   
   /**
