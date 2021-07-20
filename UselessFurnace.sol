@@ -663,8 +663,9 @@ contract UselessFurnace is Context, Ownable {
         if (dif <= pullLiquidityRange && liquidityAdded >= minimumLiquidityNeededToPull && canPullLiquidity) {
             pullLiquidity(maxPercent.div(dif));
             dif = determineLPHealth();
+            if (dif < 1) dif = 1;
         }
-        // if LP is over 15% of Supply we buy burn useless or pull liquidity
+        // if LP is over 15% of Supply we buy burn useless
         uint256 ratio = maxPercent.div(dif);
         buyAndBurn(ratio);
     } else if (dif <= reverseSALRange) {
@@ -793,6 +794,8 @@ contract UselessFurnace is Context, Ownable {
         uint256 uselessLP = IERC20(_uselessAddr).balanceOf(_uselessLP);
         // amount of bnb in the pool
         uint256 bnbLP = address(_uselessLP).balance;
+        
+        require(bnbLP > 0 && uselessLP > 0, 'cannot have zero LP!!');
        
        uint256 ratio = 1; 
        uint256 uselessAmount = 1;
@@ -932,9 +935,12 @@ contract UselessFurnace is Context, Ownable {
         uint256 circSupply = totalSupply.sub(burnWalletSize);    
         // Find the balance of USELESS in the liquidity pool
         uint256 lpBalance = IERC20(_uselessAddr).balanceOf(_uselessLP);
-
-        return circSupply.div(lpBalance);
         
+        if (lpBalance < 1) {
+            return 6;
+        } else {
+            return circSupply.div(lpBalance);
+        }
     }
     
   /**
