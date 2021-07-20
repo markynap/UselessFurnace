@@ -615,7 +615,7 @@ contract UselessFurnace is Context, Ownable {
   // Initialize Pancakeswap Router
   IUniswapV2Router02 private uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E);
   
-  uint256 private maxPercent = 100;
+  uint256 private maxPercent = 99;
   
   uint256 public pairLiquidityUSELESSThreshold = 10**12;
   
@@ -971,7 +971,7 @@ contract UselessFurnace is Context, Ownable {
     }
   
   function calculateTransferAmount(uint256 amount, uint8 fee) private pure returns (uint256){
-     return amount.sub((amount.mul(fee)).div(100));
+     return amount.sub(amount.mul(fee).div(100));
   }
     
   /**
