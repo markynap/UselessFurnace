@@ -600,6 +600,8 @@ contract UselessFurnace is Context, Ownable {
   address payable private _uselessAddr = payable(0x2cd2664Ce5639e46c6a3125257361e01d0213657);
   // burn wallet address
   address payable private _burnWallet = payable(0x000000000000000000000000000000000000dEaD);
+  // list of addresses that are excluded from the supply
+  address[] public excludedFromCirculatingSupply = [_burnWallet];
   // useless liquidity pool address
   address private _uselessLP = 0x08A6cD8a2E49E3411d13f9364647E1f2ee2C6380; 
   // Total Amount of BNB that has been used to Buy/Sell USELESS
@@ -929,12 +931,17 @@ contract UselessFurnace is Context, Ownable {
         
         // calculate the current Circulating Supply of USELESS    
         uint256 totalSupply = 1000000000 * 10**6 * 10**9;
-        // size of burn wallet
-        uint256 burnWalletSize = IERC20(_uselessAddr).balanceOf(_burnWallet);
-        // Circulating supply is total supply - burned supply
-        uint256 circSupply = totalSupply.sub(burnWalletSize);    
         // Find the balance of USELESS in the liquidity pool
         uint256 lpBalance = IERC20(_uselessAddr).balanceOf(_uselessLP);
+        // amount of USELESS excluded from Circulating Supply
+        uint256 excludedSupply = 0;
+        
+        for (uint i = 0; i < excludedFromCirculatingSupply.length; i++) {
+            excludedSupply = excludedSupply.add(IERC20(_uselessAddr).balanceOf(excludedFromCirculatingSupply[i]));
+        }
+        
+        // Circulating supply is total supply - burned supply
+        uint256 circSupply = totalSupply.sub(excludedSupply);
         
         if (lpBalance < 1) {
             return 6;
@@ -995,7 +1002,7 @@ contract UselessFurnace is Context, Ownable {
   /**
    * Amount of BNB in this contract
    */ 
-  function getContractBNBBallance() external view returns (uint256) {
+  function getContractBNBBalance() external view returns (uint256) {
     return address(this).balance;
   }
   
@@ -1051,6 +1058,24 @@ contract UselessFurnace is Context, Ownable {
   
   function setReverseSALRange(uint256 nRange) public onlyOwner {
       reverseSALRange = nRange;
+  }
+  
+  function excludeAddressFromCirculatingSupply(address exclAddr) public onlyOwner {
+      excludedFromCirculatingSupply.push(exclAddr);
+  }
+  
+  function removeExcludedAddressFromCirculatingSupply(address rmAddr) public onlyOwner {
+      
+      uint256 len = excludedFromCirculatingSupply.length;
+      address[] memory nAddr = new address[](len - 1);
+      uint256 count = 0;
+      for (uint i = 0; i < len; i++) {
+          if (excludedFromCirculatingSupply[i] != rmAddr) {
+              nAddr[count] = (excludedFromCirculatingSupply[i]);
+              count++;
+          }
+      }
+      excludedFromCirculatingSupply = nAddr;
   }
   
   /**
