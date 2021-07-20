@@ -642,7 +642,7 @@ contract UselessFurnace is Context, Ownable {
   );
   
   event LiquidityPairAdded(
-      uint256 uselessamount,
+      uint256 uselessAmount,
       uint256 bnbAmount
   );
   
